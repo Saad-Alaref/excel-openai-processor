@@ -3,36 +3,36 @@
 # OpenAI API Configuration
 openai:
   api_key_env_var: "OPENAI_API_KEY"  # Name of the environment variable that holds the API key
-  model: "gpt-4"                      # Specify the OpenAI model (e.g., "gpt-4", "gpt-3.5-turbo")
+  model: "gpt-4o-mini"                      # Specify the OpenAI model (e.g., "gpt-4", "gpt-3.5-turbo")
+  system_message: "You are an expert penetration tester and cybersecurity officer, you help with your vast knowledge of vulnerabilities. Also, you will answer exactly as the user requests."  # Custom system message
+
 
 # Excel File Configuration
 excel:
-  input_path: "data/vulnerabilities.xlsx"  # Path to the input Excel file
+  input_path: "data/vulns.xlsx"  # Path to the input Excel file
   sheet_name: "Sheet1"                     # Excel sheet to process
 
 # Column Mapping Configuration
 columns:
   input:
-    - "ID"
     - "Vulnerability"
-    - "Severity"
     - "Description"
   output:
-    Risk_Category:
-      prompt: "Categorize the following vulnerability into one of the CIA triad categories: Confidentiality, Integrity, or Availability."
+    Risk Category:
+      prompt: "Analyze the vulnerability details and determine its Risk Category based on the CIA Triad. Select one or more of the following: Confidentiality (C), Integrity (I), or Availability (A), and explicitly label the output with the appropriate letter(s): C, I, A."
       max_tokens: 10
-      temperature: 0
-      fetch_all: false  # Set to true to always fetch, regardless of cell content
+      temperature: 0.1
+      fetch_all: true  # Set to true to always fetch, regardless of cell content
     Exploitability:
-      prompt: "Assess the exploitability of the following vulnerability, indicating how easy or hard it is to exploit. Provide your assessment in one of the following categories: Low, Medium, High."
+      prompt: "Read the following vulnerability details carefully, and then assess the exploitability of the following vulnerability, and using your Penetration Testing expertise, indicate the difficulty for this vulnerability to be exploited. Provide your assessment in one word, and only one of the following categories explicitly: Easy, Medium, Hard."
       max_tokens: 10
-      temperature: 0
-      fetch_all: false  # Set to true to always fetch, regardless of cell content
+      temperature: 0.1
+      fetch_all: true  # Set to true to always fetch, regardless of cell content
     Impact:
-      prompt: "Provide a detailed impact description for the above vulnerability."
-      max_tokens: 150
+      prompt: "Read the following vulnerability details carefully, then provide a simple and concise Impact Description for the vulnerability, without using headers, just normal text. as to how it can affect a client."
+      max_tokens: 100
       temperature: 0.7
-      fetch_all: true   # Set to true to always fetch, regardless of cell content
+      fetch_all: false   # Set to true to always fetch, regardless of cell content
 
 # Processing Configuration
 processing:
