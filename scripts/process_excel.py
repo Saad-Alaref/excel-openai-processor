@@ -8,7 +8,8 @@ import pandas as pd
 import openai
 from dotenv import load_dotenv
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
+from openpyxl import load_workbook
 
 # Load environment variables from .env if available
 load_dotenv()
@@ -49,15 +50,17 @@ def load_config(config_path: str) -> Dict[str, Any]:
 # ---------------------------- OpenAI API Client ---------------------------- #
 
 class OpenAIClient:
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: str, model: str):
         """
-        Initializes the OpenAI client with the provided API key.
+        Initializes the OpenAI client with the provided API key and model.
 
         Args:
             api_key (str): OpenAI API key.
+            model (str): OpenAI model to use (e.g., "gpt-4", "gpt-3.5-turbo").
         """
         openai.api_key = api_key
-        logger.info("OpenAI client initialized.")
+        self.model = model
+        logger.info(f"OpenAI client initialized with model '{self.model}'.")
 
     def create_completion(self, prompt: str, max_tokens: int, temperature: float) -> Optional[str]:
         """
@@ -73,7 +76,7 @@ class OpenAIClient:
         """
         try:
             response = openai.ChatCompletion.create(
-                model="gpt-4",
+                model=self.model,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant."},
                     {"role": "user", "content": prompt}
@@ -102,7 +105,8 @@ class ExcelProcessor:
         self.config = config
         self.openai = openai_client
         self.input_path = config['excel']['input_path']
-        self.output_path = config['excel']['output_path']
+        # Read and write to the same Excel file
+        self.output_path = self.input_path
         self.sheet_name = config['excel'].get('sheet_name', 'Sheet1')
         self.input_columns = config['columns']['input']
         self.output_columns = config['columns']['output']
@@ -110,7 +114,7 @@ class ExcelProcessor:
         self.retry_attempts = config['processing'].get('retry_attempts', 3)
         self.retry_delay = config['processing'].get('retry_delay', 5)
 
-        logger.info(f"ExcelProcessor initialized with input file '{self.input_path}' and output file '{self.output_path}'.")
+        logger.info(f"ExcelProcessor initialized with input/output file '{self.input_path}'.")
 
     def load_excel(self) -> pd.DataFrame:
         """
@@ -127,18 +131,30 @@ class ExcelProcessor:
             logger.error(f"Failed to load Excel file '{self.input_path}': {e}")
             raise
 
-    def save_excel(self, df: pd.DataFrame):
+    def load_workbook(self):
         """
-        Saves the DataFrame to an Excel file.
-
-        Args:
-            df (pd.DataFrame): The DataFrame to save.
+        Loads the Excel workbook using openpyxl.
         """
         try:
-            df.to_excel(self.output_path, index=False, engine='openpyxl')
-            logger.info(f"Updated Excel file saved to '{self.output_path}'.")
+            workbook = load_workbook(filename=self.input_path)
+            logger.info(f"Workbook '{self.input_path}' loaded successfully.")
+            return workbook
         except Exception as e:
-            logger.error(f"Failed to save Excel file '{self.output_path}': {e}")
+            logger.error(f"Failed to load workbook '{self.input_path}': {e}")
+            raise
+
+    def save_workbook(self, workbook):
+        """
+        Saves the Excel workbook.
+
+        Args:
+            workbook: The openpyxl workbook object to save.
+        """
+        try:
+            workbook.save(self.output_path)
+            logger.info(f"Workbook '{self.output_path}' saved successfully.")
+        except Exception as e:
+            logger.error(f"Failed to save workbook '{self.output_path}': {e}")
             raise
 
     def process_row(self, row: pd.Series) -> Dict[str, Any]:
@@ -156,6 +172,15 @@ class ExcelProcessor:
             prompt_template = output_config['prompt']
             max_tokens = output_config.get('max_tokens', 50)
             temperature = output_config.get('temperature', 0.7)
+            fetch_all = output_config.get('fetch_all', False)
+
+            # Determine whether to fetch based on 'fetch_all' and cell content
+            current_value = row.get(output_column, None)
+            should_fetch = fetch_all or (pd.isna(current_value) or str(current_value).strip() == '')
+
+            if not should_fetch:
+                logger.info(f"Skipping '{output_column}' for row as it is already populated and 'fetch_all' is False.")
+                continue
 
             # Prepare the prompt by inserting input column values
             prompt = prompt_template
@@ -199,6 +224,33 @@ class ExcelProcessor:
                 logger.info(f" - {column}: {value if value else 'Failed to generate'}")
         return df
 
+    def update_workbook(self, workbook, df: pd.DataFrame):
+        """
+        Updates the Excel workbook with the generated outputs.
+
+        Args:
+            workbook: The openpyxl workbook object.
+            df (pd.DataFrame): The updated DataFrame with generated outputs.
+        """
+        try:
+            sheet = workbook[self.sheet_name]
+            logger.info(f"Updating workbook '{self.input_path}' with new data.")
+
+            # Map column names to their Excel column letters
+            column_letters = {}
+            for idx, column in enumerate(df.columns, start=1):
+                column_letters[column] = sheet.cell(row=1, column=idx).column_letter
+
+            for index, row in df.iterrows():
+                for column in self.output_columns.keys():
+                    cell = sheet[f"{column_letters[column]}{index + 2}"]  # +2 to account for header and 1-based index
+                    cell.value = row[column]
+                    logger.debug(f"Updated cell ({column_letters[column]}{index + 2}) with '{row[column]}'.")
+            logger.info(f"Workbook '{self.input_path}' updated successfully.")
+        except Exception as e:
+            logger.error(f"Failed to update workbook '{self.input_path}': {e}")
+            raise
+
 # ---------------------------- Main Execution ---------------------------- #
 
 def main():
@@ -208,14 +260,18 @@ def main():
     # Load configuration
     config = load_config(str(config_path))
 
-    # Retrieve OpenAI API key from environment variables
-    api_key = os.getenv('OPENAI_API_KEY')
+    # Retrieve OpenAI API key environment variable name from configuration
+    api_key_env_var = config['openai']['api_key_env_var']
+    api_key = os.getenv(api_key_env_var)
     if not api_key:
-        logger.error("OpenAI API key not found. Please set the 'OPENAI_API_KEY' environment variable.")
+        logger.error(f"OpenAI API key not found. Please set the '{api_key_env_var}' environment variable.")
         return
 
+    # Retrieve OpenAI model from configuration
+    model = config['openai'].get('model', 'gpt-4')
+
     # Initialize OpenAI client
-    openai_client = OpenAIClient(api_key=api_key)
+    openai_client = OpenAIClient(api_key=api_key, model=model)
 
     # Initialize Excel processor
     processor = ExcelProcessor(config=config, openai_client=openai_client)
@@ -226,8 +282,14 @@ def main():
     # Process DataFrame
     updated_df = processor.process_dataframe(df)
 
-    # Save updated Excel
-    processor.save_excel(updated_df)
+    # Load workbook to preserve styles
+    workbook = processor.load_workbook()
+
+    # Update workbook with new data
+    processor.update_workbook(workbook, updated_df)
+
+    # Save workbook (overwrite the original file)
+    processor.save_workbook(workbook)
 
     logger.info("Excel processing completed successfully.")
 

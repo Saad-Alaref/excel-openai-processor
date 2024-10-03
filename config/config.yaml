@@ -2,35 +2,40 @@
 
 # OpenAI API Configuration
 openai:
-  api_key: "${OPENAI_API_KEY}"  # Use environment variable for security
+  api_key_env_var: "OPENAI_API_KEY"  # Name of the environment variable that holds the API key
+  model: "gpt-4"                      # Specify the OpenAI model (e.g., "gpt-4", "gpt-3.5-turbo")
 
 # Excel File Configuration
 excel:
-  input_path: "data/input.xlsx"          # Path to the input Excel file
-  output_path: "data/output.xlsx"        # Path for the output Excel file
-  sheet_name: "Sheet1"                   # Excel sheet to process
+  input_path: "data/vulnerabilities.xlsx"  # Path to the input Excel file
+  sheet_name: "Sheet1"                     # Excel sheet to process
 
 # Column Mapping Configuration
 columns:
   input:
-    - "Vulnerability"                    # Columns to read as input
+    - "ID"
+    - "Vulnerability"
+    - "Severity"
     - "Description"
   output:
     Risk_Category:
       prompt: "Categorize the following vulnerability into one of the CIA triad categories: Confidentiality, Integrity, or Availability."
       max_tokens: 10
       temperature: 0
+      fetch_all: false  # Set to true to always fetch, regardless of cell content
     Exploitability:
       prompt: "Assess the exploitability of the following vulnerability, indicating how easy or hard it is to exploit. Provide your assessment in one of the following categories: Low, Medium, High."
       max_tokens: 10
       temperature: 0
+      fetch_all: false  # Set to true to always fetch, regardless of cell content
     Impact:
       prompt: "Provide a detailed impact description for the above vulnerability."
       max_tokens: 150
       temperature: 0.7
+      fetch_all: true   # Set to true to always fetch, regardless of cell content
 
 # Processing Configuration
 processing:
-  sleep_time: 1  # Seconds to wait between API requests
+  sleep_time: 1      # Seconds to wait between API requests
   retry_attempts: 3  # Number of retry attempts for failed API requests
   retry_delay: 5     # Seconds to wait before retrying
