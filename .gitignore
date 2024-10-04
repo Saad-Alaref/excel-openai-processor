@@ -7,7 +7,7 @@ __pycache__/
 .env
 
 # Excel output files
-data/output.xlsx
+data/*
 
 # Logs
 *.log
@@ -15,7 +15,3 @@ data/output.xlsx
 # Virtual environments
 venv/
 env/
-
-# OS generated files
-.DS_Store
-Thumbs.db
