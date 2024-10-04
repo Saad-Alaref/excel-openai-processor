@@ -1,7 +1,7 @@
 
 # Excel Processor with OpenAI Integration
 
-This project provides a Python-based tool for processing data from Excel spreadsheets. The tool is purpose-agnostic and highly configurable, making it applicable to a wide range of use cases, such as data enrichment, analysis, automation, and integration with external APIs (like OpenAI's GPT models).
+This project provides a Python-based tool for processing data from Excel spreadsheets. The tool is purpose-agnostic and easily configurable, making it applicable to a wide range of use cases, such as data enrichment, analysis and automation using OpenAI's GPT models.
 
 ## Features
 
@@ -9,7 +9,7 @@ This project provides a Python-based tool for processing data from Excel spreads
 - **OpenAI Integration**: Automatically generate content for specified columns using OpenAI's API.
 - **Retry Logic**: Configurable retry mechanism for handling API calls.
 - **Logging**: Detailed logging to monitor progress and troubleshoot errors.
-- **Flexible Output**: Supports free-form text output or function-based responses from OpenAI.
+- **Flexible Output**: Supports free-form text output or function-based structured responses from OpenAI.
 
 ## Requirements
 
@@ -24,8 +24,8 @@ This project provides a Python-based tool for processing data from Excel spreads
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/your-repo.git
-   cd your-repo
+   git clone https://github.com/Saad-Alaref/excel-openai-processor.git
+   cd excel-openai-processor
    ```
 
 2. Install the required Python packages:
@@ -106,11 +106,11 @@ This will start processing the Excel file as per the configuration, making API r
 
 ## Logging
 
-Logs are saved in `app.log`. You can monitor the progress of the script, including API calls and row processing details.
+Logs are saved in `log_file.log`. You can monitor the progress of the script, including API calls and row processing details.
 
 ## Customization
 
-This tool is designed to be flexible and purpose-agnostic, allowing you to adapt it to various domains. Whether you're working with business data, scientific information, or other fields, you can customize the prompts, column mappings, and retry logic to suit your use case.
+This tool is designed to be flexible and purpose-agnostic, allowing you to adapt it to various domains. Whether you're working with business data, scientific information, or other fields, you can customize the prompts and column mappings to suit your use case.
 
 ## License
 
