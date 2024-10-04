@@ -25,6 +25,8 @@ This project provides a Python-based tool for processing data from Excel spreads
 1. Clone the repository:
    ```bash
    git clone https://github.com/Saad-Alaref/excel-openai-processor.git
+   ```
+   ```bash
    cd excel-openai-processor
    ```
 
