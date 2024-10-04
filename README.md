@@ -1,270 +1,121 @@
 
-# Excel OpenAI Processor
+# Excel Processor with OpenAI Integration
 
-A streamlined Python script that processes Excel files by reading vulnerability data and leveraging OpenAI's API to categorize risks, assess exploitability, and generate impact descriptions. This tool is designed for cybersecurity professionals to automate and enhance vulnerability assessments efficiently.
-
-## Table of Contents
-- Features
-- Prerequisites
-- Installation
-- Configuration
-- Usage
-- Project Structure
-- Troubleshooting
-- Contributing
-- License
-- Contact
+This project provides a Python-based tool for processing data from Excel spreadsheets. The tool is purpose-agnostic and highly configurable, making it applicable to a wide range of use cases, such as data enrichment, analysis, automation, and integration with external APIs (like OpenAI's GPT models).
 
 ## Features
-- **Automated Risk Categorization**: Classifies vulnerabilities into Confidentiality, Integrity, or Availability based on the CIA triad.
-- **Exploitability Assessment**: Evaluates how easy or difficult it is to exploit each vulnerability, categorizing them as Low, Medium, or High.
-- **Impact Description Generation**: Automatically generates detailed impact descriptions for vulnerabilities lacking this information.
-- **Excel Integration**: Reads from and writes to Excel files, ensuring seamless data handling.
-- **Environment Variable Management**: Utilizes global environment variables for secure and efficient API key management.
-- **Logging**: Provides informative logs to monitor processing status and debug issues.
-- **Simplified Script**: Easy-to-understand and modify script suitable for both beginners and professionals.
 
-## Prerequisites
+- **Excel Processing**: Load and process rows from an Excel file.
+- **OpenAI Integration**: Automatically generate content for specified columns using OpenAI's API.
+- **Retry Logic**: Configurable retry mechanism for handling API calls.
+- **Logging**: Detailed logging to monitor progress and troubleshoot errors.
+- **Flexible Output**: Supports free-form text output or function-based responses from OpenAI.
 
-Before setting up the Excel OpenAI Processor, ensure you have the following:
+## Requirements
 
-### Python Installed:
-- Python 3.6 or later is required.
-- Download and install Python from [python.org](https://www.python.org/).
+- Python 3.8+
+- Packages:
+  - `pandas`
+  - `openai`
+  - `openpyxl`
+  - `PyYAML`
 
-### Git Installed:
-- Required for cloning the repository.
-- Download and install Git from [git-scm.com](https://git-scm.com/).
+## Setup
 
-### OpenAI API Key:
-- Obtain your API key from [OpenAI's API Keys](https://beta.openai.com/account/api-keys).
-- Ensure you have access to the GPT-4 model.
-
-### Excel File:
-Prepare your input Excel file (`vulnerabilities.xlsx`) with the following headers:
-- ID
-- Vulnerability
-- Risk Category
-- Severity
-- Exploitability
-- Description
-- Impact
-- Remediation
-- References
-
-## Installation
-
-Follow these steps to set up the project on your local machine.
-
-1. **Clone the Repository**
-
-   Open Command Prompt or PowerShell and navigate to your desired directory. Then, clone the repository:
-
+1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/excel-openai-processor.git
+   git clone https://github.com/yourusername/your-repo.git
+   cd your-repo
    ```
 
-   Replace `yourusername` with your actual GitHub username.
-
-2. **Navigate to the Project Directory**
-
+2. Install the required Python packages:
    ```bash
-   cd excel-openai-processor
+   pip install -r requirements.txt
    ```
 
-3. **Create a Virtual Environment**
+3. Set up your configuration file:
+   - A sample configuration file is located in `config/config.yaml`. Modify it to suit your needs, such as specifying the input Excel file, OpenAI API key, and processing options.
 
-   It's recommended to use a virtual environment to manage dependencies.
-
+4. Set the OpenAI API key as an environment variable:
    ```bash
-   python -m venv venv
-   ```
-
-4. **Activate the Virtual Environment**
-
-   - Command Prompt:
-   
-     ```cmd
-     venv\Scripts\activate.bat
-     ```
-
-   - PowerShell:
-   
-     ```powershell
-     venv\Scripts\Activate.ps1
-     ```
-
-   If you encounter an execution policy error in PowerShell, run the following command to allow script execution for the current session:
-
-   ```powershell
-   Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-   ```
-
-5. **Install Dependencies**
-
-   ```bash
-   pip install pandas openpyxl openai
+   export OPENAI_API_KEY=your_openai_api_key
    ```
 
 ## Configuration
 
-1. **Set Global Environment Variable for OpenAI API Key**
+The tool uses a YAML configuration file (`config/config.yaml`) that specifies the input Excel file, columns to process, and OpenAI settings.
 
-   To securely manage your OpenAI API key, set it as a global environment variable in Windows.
+Example `config.yaml`:
+```yaml
+excel:
+  input_path: "data/input.xlsx"
+  sheet_name: "Sheet1"
 
-   a. **Open System Properties**
-   - Press `Win + Pause/Break` keys simultaneously.
-   - Alternatively, right-click on `This PC` on the desktop or in File Explorer and select `Properties`, then click `Advanced system settings`.
+columns:
+  input:
+    - ColumnA
+    - ColumnB
+  output:
+    ColumnC:
+      prompt: "Please summarize the following information:"
+      max_tokens: 50
+      temperature: 0.7
+      fetch_all: false
 
-   b. **Access Environment Variables**
-   - In the System Properties window, navigate to the `Advanced` tab.
-   - Click on the `Environment Variables...` button at the bottom.
+openai:
+  api_key_env_var: "OPENAI_API_KEY"
+  model: "gpt-4"
+  system_message: "You are a helpful assistant."
 
-   c. **Add a New System Variable**
-   - Under the System variables section, click `New...`.
-   - Variable name: `OPENAI_API_KEY`
-   - Variable value: `your-openai-api-key-here`
-   - Click OK to save.
+processing:
+  sleep_time: 1
+  retry_attempts: 3
+  retry_delay: 5
+```
 
-   Replace `your-openai-api-key-here` with your actual OpenAI API key.
+### Configuration Details:
 
-   d. **Verify the Variable**
-
-   Open PowerShell or Command Prompt.
-
-   Run the following command:
-
-   ```powershell
-   echo $env:OPENAI_API_KEY
-   ```
-
-   You should see your API key displayed.
-
-2. **Prepare the Excel File**
-
-   Ensure your input Excel file (`vulnerabilities.xlsx`) is placed in the project directory and structured with the required headers.
+- **Excel Section**:
+  - `input_path`: Path to the Excel file.
+  - `sheet_name`: Name of the sheet to process.
+- **Columns Section**:
+  - `input`: Columns from the Excel sheet used to generate the prompt.
+  - `output`: Columns to fill based on the API's response.
+    - `prompt`: Template for the API prompt.
+    - `max_tokens`: Maximum token count for the API response.
+    - `temperature`: Controls randomness of the API's output.
+    - `fetch_all`: Whether to overwrite existing data or only fetch missing data.
+- **OpenAI Section**:
+  - `api_key_env_var`: Environment variable that holds the API key.
+  - `model`: OpenAI model to use (e.g., GPT-4).
+  - `system_message`: System message to provide context to the model.
+- **Processing Section**:
+  - `sleep_time`: Time to wait between API calls.
+  - `retry_attempts`: Number of times to retry if an API call fails.
+  - `retry_delay`: Time to wait between retries.
 
 ## Usage
 
-Run the Python script to process the Excel file.
-
-1. **Activate the Virtual Environment (If Not Already Active)**
-
-   - Command Prompt:
-   
-     ```cmd
-     venv\Scripts\activate.bat
-     ```
-
-   - PowerShell:
-   
-     ```powershell
-     venv\Scripts\Activate.ps1
-     ```
-
-2. **Execute the Script**
-
-   ```bash
-   python process_excel.py
-   ```
-
-3. **Monitor the Output**
-
-   The script will log processing steps in the console.
-   Upon completion, an updated Excel file (`vulnerabilities_updated.xlsx`) will be generated in the project directory with the following updates:
-   - **Risk Category**: Categorized as Confidentiality, Integrity, or Availability.
-   - **Exploitability**: Assessed as Low, Medium, or High.
-   - **Impact**: Generated if previously empty.
-
-## Project Structure
+Run the script using:
 
 ```bash
-excel-openai-processor/
-├── venv/                        # Virtual environment directory
-├── vulnerabilities.xlsx         # Input Excel file
-├── vulnerabilities_updated.xlsx # Output Excel file
-├── process_excel.py             # Main Python script
-├── .gitignore                   # Specifies files to ignore in Git
-├── README.md                    # Project documentation
-└── requirements.txt             # Project dependencies (optional)
+python scripts/process_excel.py
 ```
 
-Note: The `venv/` directory can be excluded from version control.
+This will start processing the Excel file as per the configuration, making API requests to OpenAI for generating outputs, and filling the results back into the Excel file.
 
-## Troubleshooting
+## Logging
 
-1. **OpenAI API Key Not Found**
+Logs are saved in `app.log`. You can monitor the progress of the script, including API calls and row processing details.
 
-   - **Symptom**: Error message indicating that the OpenAI API key is missing.
-   - **Solution**:
-     - Ensure that the `OPENAI_API_KEY` environment variable is correctly set.
-     - Open a new terminal session after setting the environment variable.
-     - Verify by running:
-     ```powershell
-     echo $env:OPENAI_API_KEY
-     ```
+## Customization
 
-2. **Excel File Not Found**
-
-   - **Symptom**: Error indicating that the input Excel file is missing.
-   - **Solution**:
-     - Ensure that `vulnerabilities.xlsx` is placed in the project directory.
-     - Verify the file name and path.
-
-3. **Permission Issues**
-
-   - **Symptom**: Errors related to file access permissions.
-   - **Solution**:
-     - Run the terminal or PowerShell as an administrator.
-     - Ensure that you have read/write permissions for the project directory and Excel files.
-
-4. **Rate Limiting by OpenAI**
-
-   - **Symptom**: Errors indicating too many requests to the OpenAI API.
-   - **Solution**:
-     - Increase the `time.sleep(1)` delay between API requests in the script.
-     - Monitor your OpenAI API usage and adjust based on your plan.
-
-5. **Missing Dependencies**
-
-   - **Symptom**: Import errors for missing Python packages.
-   - **Solution**:
-     - Ensure all dependencies are installed using:
-     ```bash
-     pip install pandas openpyxl openai
-     ```
-
-## Contributing
-
-Contributions are welcome! To contribute:
-
-1. **Fork the Repository**
-2. **Create a New Branch**
-
-   ```bash
-   git checkout -b feature/YourFeatureName
-   ```
-
-3. **Commit Your Changes**
-
-   ```bash
-   git commit -m "Add Your Feature"
-   ```
-
-4. **Push to the Branch**
-
-   ```bash
-   git push origin feature/YourFeatureName
-   ```
-
-5. **Open a Pull Request**
-
-   Provide a clear description of your changes and the problem they address.
+This tool is designed to be flexible and purpose-agnostic, allowing you to adapt it to various domains. Whether you're working with business data, scientific information, or other fields, you can customize the prompts, column mappings, and retry logic to suit your use case.
 
 ## License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contact
 
-For any questions or support, please contact `saad.alaref95@gmail.com`.
+For any reason, you may contact me using the following email address: `saad.alaref95@gmail.com`.
