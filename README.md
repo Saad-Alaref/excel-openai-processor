@@ -81,7 +81,7 @@ processing:
   - `input_path`: Path to the Excel file.
   - `sheet_name`: Name of the sheet to process.
 - **Columns Section**:
-  - `input`: Columns from the Excel sheet used to generate the prompt.
+  - `input`: Columns from the Excel sheet used to generate the prompt, these columns are passed (per row) to the API along with the prompt.
   - `output`: Columns to fill based on the API's response.
     - `prompt`: Template for the API prompt.
     - `max_tokens`: Maximum token count for the API response.
