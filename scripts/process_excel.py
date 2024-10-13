@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, List
 from openpyxl import load_workbook
 import json
+import operator
 
 # ---------------------------- Logging Configuration ---------------------------- #
 
@@ -17,7 +18,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
-        logging.FileHandler('../log_file.log')
+        logging.FileHandler('../log_file.log'),
+        #logging.StreamHandler()  # Added to also output logs to the console
     ]
 )
 
@@ -112,6 +114,15 @@ class ExcelProcessor:
             logger.error(f"Failed to load workbook '{self.input_path}': {e}")
             raise
 
+        # Load filter configuration
+        self.filter_enabled = config.get('filter', {}).get('enabled', False)
+        self.filter_criteria = config.get('filter', {}).get('criteria', [])
+
+        if self.filter_enabled:
+            logger.info("Filtering is enabled. Applying filter criteria.")
+        else:
+            logger.info("Filtering is disabled. All rows will be processed.")
+
     def save_workbook(self):
         try:
             self.workbook.save(self.input_path)
@@ -119,6 +130,66 @@ class ExcelProcessor:
         except Exception as e:
             logger.error(f"Failed to save workbook '{self.input_path}': {e}")
             raise
+
+    def matches_criteria(self, row_data: pd.Series) -> bool:
+        """
+        Determine if a row matches all the filter criteria.
+        """
+        if not self.filter_enabled or not self.filter_criteria:
+            return True  # No filtering applied
+
+        # Mapping of operations to actual Python functions
+        ops = {
+            "equals": operator.eq,
+            "contains": lambda a, b: b in a if isinstance(a, str) else False,
+            "in": lambda a, b: a in b if a else False,
+            "greater_than": operator.gt,
+            "less_than": operator.lt,
+            # Add more operations as needed
+        }
+
+        for criterion in self.filter_criteria:
+            column = criterion.get('column')
+            operation = criterion.get('operation')
+            value = criterion.get('value')
+
+            if column not in row_data:
+                logger.warning(f"Filter column '{column}' not found in row data.")
+                return False
+
+            cell_value = row_data[column]
+
+            # Handle None or empty cell values
+            if pd.isna(cell_value):
+                cell_value = None
+
+            # Get the operation function
+            op_func = ops.get(operation)
+            if not op_func:
+                logger.warning(f"Unsupported operation '{operation}' in filter criteria.")
+                return False
+
+            # Apply the operation
+            try:
+                if operation == "in":
+                    if not isinstance(value, list):
+                        logger.warning(f"Value for 'in' operation must be a list. Got: {value}")
+                        return False
+                    if not op_func(cell_value, value):
+                        return False
+                else:
+                    if cell_value is None:
+                        logger.debug(f"Row has no value for column '{column}'.")
+                        return False
+                    if not op_func(cell_value, value):
+                        return False
+            except Exception as e:
+                logger.error(f"Error applying filter on column '{column}': {e}")
+                return False
+
+            logger.debug(f"Filtering on column '{column}': {cell_value} {operation} {value}")
+
+        return True
 
     def process_row(self, row_number: int, row_data: pd.Series):
         logger.info(f"Processing row {row_number}: {row_data[self.input_columns].to_dict()}")
@@ -227,10 +298,18 @@ class ExcelProcessor:
         try:
             total_rows = self.sheet.max_row - 1  # Exclude header row
             current_row = 0
+            processed_rows = 0
             print("Processing rows...")
             for idx, row in enumerate(self.sheet.iter_rows(min_row=2, values_only=True), start=2):
                 row_data = pd.Series(row, index=[cell.value for cell in self.sheet[1]])
-                self.process_row(idx, row_data)
+
+                # Check if the row matches the filter criteria
+                if self.matches_criteria(row_data):
+                    self.process_row(idx, row_data)
+                    processed_rows += 1
+                else:
+                    logger.debug(f"Row {idx} skipped due to filter criteria.")
+
                 current_row += 1
                 percent_complete = (current_row / total_rows) * 100
                 print(f"Progress: {current_row}/{total_rows} rows ({percent_complete:.2f}%)", end='\r')
@@ -268,7 +347,7 @@ def main():
         return
 
     # Retrieve OpenAI model and system message from configuration
-    model = config['openai'].get('model', 'gpt-4-o')
+    model = config['openai'].get('model', 'gpt-4o-mini')
     system_message = config['openai'].get('system_message', "You are a helpful assistant that adheres to user requests.")
 
     # Initialize OpenAI client
