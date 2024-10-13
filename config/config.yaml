@@ -8,7 +8,7 @@ openai:
 
 # Excel File Configuration
 excel:
-  input_path: "data/file.xlsx"
+  input_path: "data/FMFB Report Data.xlsx"
   sheet_name: "Sheet1"
 
 # Column Mapping Configuration
@@ -18,10 +18,10 @@ columns:
     - "Description"
   output:
     Risk Category:
-      prompt: "Analyze the vulnerability details and determine its Risk Category based on the CIA Triad. Select one or more of the following: Confidentiality (C), Integrity (I), or Availability (A), and explicitly label the output with the appropriate letter(s): C, I, A."
+      prompt: "Analyze the vulnerability details carefully and determine its Risk Category based on the CIA Triad. Select one or more of the following: Confidentiality (C), Integrity (I), or Availability (A), and explicitly label the output with the appropriate letter(s): C, I, A."
       max_tokens: 10
       temperature: 0.1
-      fetch_all: true
+      fetch_all: false
       schema:
         name: "risk_category"
         schema:
@@ -33,7 +33,18 @@ columns:
           required: ["risk_level"]
           additionalProperties: false
     Exploitability:
-      prompt: "Read the following vulnerability details carefully, and then assess the exploitability of the vulnerability. Using your Penetration Testing expertise, indicate the difficulty for this vulnerability to be exploited. Provide your assessment in one word, and only one of the following categories explicitly: Easy, Medium, Hard."
+      prompt: > Based on the provided vulnerability information, rank the exploitability of each vulnerability.
+        Consider the following factors when making your assessment:
+        1. The attacker is already in the internal network
+        2. Ease of exploitation (Is it simple or complex to exploit?)
+        3. Technical expertise required (Can a novice exploit this, or does it require advanced skills?)
+        4. Potential impact (What damage can exploitation cause, such as system control or data exposure?)
+
+        For each vulnerability, analyze the name, description, and impact to determine one of the following levels of exploitability:
+
+        High: Easy to exploit, requires minimal access or knowledge, widely available exploit tools, deals great damage.
+        Moderate: Requires some expertise, access, or custom tools, but feasible in most cases.
+        Low: Difficult to exploit, requiring specific conditions, expertise, or access that is unlikely.
       max_tokens: 10
       temperature: 0.1
       fetch_all: true
@@ -44,17 +55,17 @@ columns:
           properties:
             difficulty:
               type: "string"
-              enum: ["Easy", "Medium", "Hard"]
+              enum: ["Low", "Medium", "High"]
           required: ["difficulty"]
           additionalProperties: false
     Impact:
-      prompt: "Read the following vulnerability details carefully, then, without an introduction to the vulnerability or mentioning its name, provide a simple and concise impact description for the vulnerability, without using headers, just normal text, on how it can affect a client."
+      prompt: "Read the following vulnerability details carefully, then, without an introduction to the vulnerability or mentioning its name, provide a simple and concise impact description for the vulnerability, without using headers, just normal text, on how it can affect an organization."
       max_tokens: 150
       temperature: 0.7
-      fetch_all: true
+      fetch_all: false
 
 # Processing Configuration
 processing:
-  sleep_time: 1
+  sleep_time: 0.2
   retry_attempts: 2
   retry_delay: 3
