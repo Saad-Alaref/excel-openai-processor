@@ -8,7 +8,7 @@ openai:
 
 # Excel File Configuration
 excel:
-  input_path: "data/FMFB Report Data.xlsx"
+  input_path: "data/Data.xlsx"
   sheet_name: "Sheet1"
 
 # Filtering Configuration
