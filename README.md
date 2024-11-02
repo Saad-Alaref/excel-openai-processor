@@ -49,30 +49,40 @@ The tool uses a YAML configuration file (`config/config.yaml`) that specifies th
 
 Example `config.yaml`:
 ```yaml
-excel:
-  input_path: "data/input.xlsx"
-  sheet_name: "Sheet1"
-
-columns:
-  input:
-    - ColumnA
-    - ColumnB
-  output:
-    ColumnC:
-      prompt: "Please summarize the following information:"
-      max_tokens: 50
-      temperature: 0.7
-      fetch_all: false
-
+# OpenAI API Configuration
 openai:
   api_key_env_var: "OPENAI_API_KEY"
   model: "gpt-4"
   system_message: "You are a helpful assistant."
 
+# Excel File Configuration
+excel:
+  input_path: "data/input.xlsx"
+  sheet_name: "Sheet1"
+
+# Filtering Configuration
+filter:
+  enabled: false  # Toggle to enable or disable filtering
+  criteria:
+    - column: "Column A"
+      operation: "in" # Supported operations: equals, contains, in, greater_than, less_than
+      value: ["High", "Medium", "Low"]
+
+columns:
+  output:
+    Column B:
+      input_columns:
+        - "Column C"
+        - "Column D"
+      prompt: "Please summarize the following information:"
+      max_tokens: 50
+      temperature: 0.7
+      fetch_all: false
+
 processing:
   sleep_time: 1
-  retry_attempts: 3
-  retry_delay: 5
+  retry_attempts: 2
+  retry_delay: 3
 ```
 
 ### Configuration Details:
