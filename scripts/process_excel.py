@@ -99,7 +99,6 @@ class ExcelProcessor:
         self.openai = openai_client
         self.input_path = config['excel']['input_path']
         self.sheet_name = config['excel'].get('sheet_name', 'Sheet1')
-        self.input_columns = config['columns']['input']
         self.output_columns = config['columns']['output']
         self.sleep_time = config['processing'].get('sleep_time', 1)
         self.retry_attempts = config['processing'].get('retry_attempts', 3)
@@ -192,13 +191,14 @@ class ExcelProcessor:
         return True
 
     def process_row(self, row_number: int, row_data: pd.Series):
-        logger.info(f"Processing row {row_number}: {row_data[self.input_columns].to_dict()}")
+        logger.info(f"Processing row {row_number}: {row_data.to_dict()}")
         for output_column, output_config in self.output_columns.items():
             prompt_template = output_config['prompt']
             max_tokens = output_config.get('max_tokens', 50)
             temperature = output_config.get('temperature', 0.7)
             fetch_all = output_config.get('fetch_all', False)
             schema = output_config.get('schema', None)
+            input_columns = output_config.get('input_columns', [])
 
             # Determine whether to fetch based on 'fetch_all' and cell content
             current_value = row_data.get(output_column, None)
@@ -210,7 +210,7 @@ class ExcelProcessor:
 
             # Prepare the prompt by inserting input column values
             prompt = prompt_template
-            for input_col in self.input_columns:
+            for input_col in input_columns:
                 prompt += f"\n{input_col}: {row_data[input_col]}"
             logger.debug(f"Generated prompt for '{output_column}': {prompt}")
 
@@ -241,40 +241,38 @@ class ExcelProcessor:
 
                     if result:
                         if isinstance(result, dict):
-                            if output_column == 'Risk Category':
-                                value = result.get('risk_level', 'N/A')  # Default to 'N/A' if not found
-                                logger.info(f"Extracted 'risk_level': {value}")
-                            elif output_column == 'Exploitability':
-                                value = result.get('difficulty', 'N/A')  # Default to 'N/A' if not found
-                                logger.info(f"Extracted 'difficulty': {value}")
+                            # When a schema is provided, extract the parameter names
+                            if schema:
+                                function_schema = schema.get('schema', {})
+                                parameter_names = function_schema.get('properties', {}).keys()
+                                # Assuming we're interested in the first parameter
+                                if parameter_names:
+                                    param_name = next(iter(parameter_names))
+                                    value = result.get(param_name, 'N/A')
+                                    logger.info(f"Extracted '{param_name}': {value}")
+                                else:
+                                    # If no parameter names are specified, use the entire result
+                                    value = result
+                                    logger.info(f"No parameters specified in schema, using result: {value}")
                             else:
-                                value = result  # For free-form text outputs
-                                logger.info(f"Free-form result: {value}")
-
-                            # Write directly to the cell
-                            try:
-                                column_letter = self.get_column_letter(output_column)
-                                cell_reference = f"{column_letter}{row_number}"
-                                self.sheet[cell_reference].value = value
-                                logger.info(f" - {output_column} updated in cell {cell_reference}: {value}")
-                                break  # Exit retry loop on success
-                            except Exception as write_error:
-                                logger.error(f"Failed to write to cell {cell_reference}: {write_error}")
-                                break  # Here, we break to avoid infinite retries
-
+                                # No schema, use the entire result
+                                value = result
+                                logger.info(f"No schema provided, using result: {value}")
                         else:
                             # Handle free-form text outputs
                             value = result  # For free-form text outputs
                             logger.info(f"Free-form result: {value}")
-                            try:
-                                column_letter = self.get_column_letter(output_column)
-                                cell_reference = f"{column_letter}{row_number}"
-                                self.sheet[cell_reference].value = value
-                                logger.info(f" - {output_column} updated in cell {cell_reference}: {value}")
-                                break  # Exit retry loop on success
-                            except Exception as write_error:
-                                logger.error(f"Failed to write to cell {cell_reference}: {write_error}")
-                                break  # Break to avoid infinite retries
+
+                        # Write directly to the cell
+                        try:
+                            column_letter = self.get_column_letter(output_column)
+                            cell_reference = f"{column_letter}{row_number}"
+                            self.sheet[cell_reference].value = value
+                            logger.info(f" - {output_column} updated in cell {cell_reference}: {value}")
+                            break  # Exit retry loop on success
+                        except Exception as write_error:
+                            logger.error(f"Failed to write to cell {cell_reference}: {write_error}")
+                            break  # Break to avoid infinite retries
                     else:
                         logger.warning(f"Attempt {attempt}: Received an empty or invalid result for '{output_column}'.")
 
@@ -287,6 +285,7 @@ class ExcelProcessor:
 
             # Sleep between API requests to respect rate limits
             time.sleep(self.sleep_time)
+
 
     def get_column_letter(self, column_name: str) -> str:
         for idx, cell in enumerate(self.sheet[1], start=1):
